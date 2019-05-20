@@ -6,10 +6,13 @@
  */
 
 #include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
 
 #include "config.h"
 #include "pages.h"
 
+
+const bool debugMode = false;
 
 /////////////////////
 // Pin Definitions //
@@ -27,45 +30,50 @@ const int HOME_REQUEST = 0;
 /*
  * Request Paths
  */
-const string HOME_PATH = "/home"
+const String HOME_PATH = "/home";
 
-WiFiServer server(80);
+ESP8266WebServer server(80);
 
 void setup() 
 {
   initHardware();
   setupWiFi();
-  server.begin();
+  initServer();
 }
 
 void loop() 
 {
-  // Check if a client has connected
-  WiFiClient client = server.available();
-  if (!client) {
-    return;
-  }
+  server.handleClient();
+  // // Check if a client has connected
+  // WiFiClient client = server.available();
+  // if (!client) {
+  //   return;
+  // }
 
-  // Read the first line of the request
-  String req = client.readStringUntil('\r');
-  Serial.println(req);
-  client.flush();
+  // // Read the first line of the request
+  // String req = client.readStringUntil('\r');
+  // if(debugMode) {
+  //   Serial.println(req);
+  // }
+  // client.flush();
 
-  string page = getNotFoundPage();
-  int currentRequest = INVALID_REQUEST;
+  // String page = getNotFoundPage();
+  // int currentRequest = INVALID_REQUEST;
 
-  if(req.indexOf(HOME_PATH) > 0) {
-    currentRequest = HOME_REQUEST;
-    page = getHomePage();
-  }
+  // if(req.indexOf(HOME_PATH) > 0) {
+  //   currentRequest = HOME_REQUEST;
+  //   page = getHomePage();
+  // }
 
 
-  client.flush();
+  // client.flush();
 
-  // Send the response to the client
-  client.print(page);
-  delay(1);
-  Serial.println("Client disonnected");
+  // // Send the response to the client
+  // client.print(page);
+  // delay(1);
+  // if(debugMode) {
+  //   Serial.println("Client disonnected");
+  // }
 }
 
 void setupWiFi()
@@ -99,4 +107,49 @@ void initHardware()
 //  digitalWrite(LED_PIN, LOW);
   // Don't need to set ANALOG_PIN as input, 
   // that's all it can be.
+}
+
+void initServer() {
+  server.on("/", handleHome);
+  server.on("/movements", handleMovements);
+  server.onNotFound(handleNotFound);
+}
+
+void handleHome() {
+      server.send(200, "text/html",  getHomePage());
+}
+
+void handleMovements() {
+  if(server.method() == HTTPMethod::HTTP_POST) {
+    int argCount = server.args();
+    Serial.println("Retrieving args");
+    for(int i=0; i < argCount; i++) {
+      Serial.println(server.arg(i));
+    }
+
+    return;
+  }
+
+  if(server.method() == HTTPMethod::HTTP_GET) {
+    Serial.println("GET MOVEMENTS");
+    return;
+  }
+
+  Serial.println("Invalid Method.");
+
+  // if (server.hasArg("plain")== false){ //Check if body received
+  //       server.send(200, "text/plain", "Body not received");
+  //       return;
+  // }
+
+  // String message = "Body received:\n";
+  //         message += server.arg("plain");
+  //         message += "\n";
+
+  // server.send(200, "text/plain", message);
+  // Serial.println(message);
+}
+
+void handleNotFound() {
+  server.send(404, "text/plain", getNotFoundPage());
 }
