@@ -1,6 +1,8 @@
+#include <WString.h>
+
 struct Config{
-  char wifiUsername[16];
-  char wifiPassword[16];
+  String wifiUsername;
+  String wifiPassword;
 };
 
 extern Config configuration;
