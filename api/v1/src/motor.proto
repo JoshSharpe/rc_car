@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package car;
+
+service Car {
+    rpc Move(MoveVector) returns (CurrentData) {}
+    rpc GetSensorData(SensorParameters) returns(CurrentData) {}
+}
+
+message Vector {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message MoveVector {
+  Vector direction = 1;
+  Vector rotation = 2;
+
+}
+  
+message SensorParameters {
+  
+}
+  
+
+// The response message containing the greetings
+message CurrentData {
+  string errorMessage = 1;
+  Vector location = 2;
+  Vector rotation = 3;
+  Vector velocity = 4;
+}
