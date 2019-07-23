@@ -31,7 +31,9 @@ func NewSonar(signalPin, echoPin int) *sonar {
 
 func (s *sonar) GetDistance() float64 {
 	s.signalPin.High()
+	time.Sleep(time.Microsecond * 10)
 	s.signalPin.Low()
+
 	initTime := time.Now()
 
 	for s.echoPin.Read() == pi.Low {

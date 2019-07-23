@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	sonar := car.NewSonar(0, 1)
+	sonar := car.NewSonar(20, 21)
 
 	for i := 0; i < 1000; i++ {
 		dist := sonar.GetDistance()
@@ -16,5 +16,7 @@ func main() {
 
 		time.Sleep(time.Millisecond * 10)
 	}
+
+	car.ShutDown()
 
 }

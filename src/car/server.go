@@ -40,6 +40,10 @@ func init() {
 	speed2Pin.Pwm()
 }
 
+func ShutDown() {
+	pi.Close()
+}
+
 func startCar() *car {
 	c := &car{}
 
@@ -81,6 +85,6 @@ func (c *car) GetSensorData(ctx context.Context, fv *api.SensorParameters) (*api
 	}, nil
 }
 
-func (c *car) shutdown() {
+func (c *car) ShutDown() {
 	c.server.GracefulStop()
 }
