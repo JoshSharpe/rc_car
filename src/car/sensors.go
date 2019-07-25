@@ -42,3 +42,23 @@ func (s *sonar) GetDistance() float64 {
 
 	return float64(diff.Nanoseconds()) / convertToCentimeters
 }
+
+type led struct {
+	pinNumber pi.Pin
+	isOn      bool
+}
+
+func NewLED(p int) *led {
+	outputPin := pi.Pin(p)
+	outputPin.Output()
+
+	return &led{
+		pinNumber: outputPin,
+		isOn:      false,
+	}
+}
+
+func (l *led) Toggle() {
+	l.pinNumber.Toggle()
+	l.isOn = !l.isOn
+}
