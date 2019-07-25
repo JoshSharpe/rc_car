@@ -48,12 +48,9 @@ type led struct {
 	isOn      bool
 }
 
-func NewLED(p int) *led {
-	outputPin := pi.Pin(p)
-	outputPin.Output()
-
+func NewLED(p pi.Pin) *led {
 	return &led{
-		pinNumber: outputPin,
+		pinNumber: p,
 		isOn:      false,
 	}
 }
