@@ -32,6 +32,7 @@ type car struct {
 	server *grpc.Server
 }
 
+/*
 func init() {
 	pi.Open()
 	direction1Pin.Output()
@@ -43,6 +44,7 @@ func init() {
 func ShutDown() {
 	pi.Close()
 }
+*/
 
 func startCar() *car {
 	c := &car{}
