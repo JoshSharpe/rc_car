@@ -23,16 +23,10 @@ type sonar struct {
 	echoPin   pi.Pin
 }
 
-func NewSonar(signalPin, echoPin int) *sonar {
-	outputPin := pi.Pin(signalPin)
-	outputPin.Output()
-
-	inputPin := pi.Pin(echoPin)
-	inputPin.Input()
-
+func NewSonar(signalPin, echoPin pi.Pin) *sonar {
 	return &sonar{
-		signalPin: outputPin,
-		echoPin:   inputPin,
+		signalPin: signalPin,
+		echoPin:   echoPin,
 	}
 }
 
@@ -41,13 +35,15 @@ func (s *sonar) GetDistance() float64 {
 	time.Sleep(time.Microsecond * 10)
 	s.signalPin.Low()
 
-	initTime := time.Now()
 
 	for s.echoPin.Read() == pi.Low {
 	}
+	initTime := time.Now()
+	for s.echoPin.Read() == pi.High {
+	}
 	diff := time.Now().Sub(initTime)
 
-	return float64(diff.Nanoseconds()) / convertToCentimeters
+	return float64(diff.Nanoseconds() / 1000) / convertToCentimeters
 }
 
 type led struct {
