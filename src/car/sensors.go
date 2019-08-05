@@ -95,7 +95,7 @@ type IMU struct {
 // NewIMU create a new imu object that is initialized and ready to read data.
 func NewIMU(bus i2c.BusCloser) *IMU {
 	d := &i2c.Dev{
-		Addr: 68,
+		Addr: 0x68,
 		Bus:  bus,
 	}
 
@@ -107,7 +107,7 @@ func NewIMU(bus i2c.BusCloser) *IMU {
 		MPU6050_CLOCK_PLL_XGYRO,
 	})
 	if err != nil {
-		log.Fatal("Unable to create imu. Err: ", err)
+		log.Fatal("A) Unable to create imu. Err: ", err)
 	}
 
 	// Set Full Scale Gryo Range
@@ -118,7 +118,7 @@ func NewIMU(bus i2c.BusCloser) *IMU {
 		MPU6050_GYRO_FS_250,
 	})
 	if err != nil {
-		log.Fatal("Unable to create imu. Err: ", err)
+		log.Fatal("B) Unable to create imu. Err: ", err)
 	}
 
 	// Set Full Scale Acc Range
@@ -129,7 +129,7 @@ func NewIMU(bus i2c.BusCloser) *IMU {
 		MPU6050_ACCEL_FS_2,
 	})
 	if err != nil {
-		log.Fatal("Unable to create imu. Err: ", err)
+		log.Fatal("C) Unable to create imu. Err: ", err)
 	}
 
 	// Set sleep disabled
@@ -139,7 +139,7 @@ func NewIMU(bus i2c.BusCloser) *IMU {
 		0,
 	})
 	if err != nil {
-		log.Fatal("Unable to create imu. Err: ", err)
+		log.Fatal("D) Unable to create imu. Err: ", err)
 	}
 
 	return &IMU{
@@ -151,6 +151,10 @@ func NewIMU(bus i2c.BusCloser) *IMU {
 
 // ReadData triggers a read that will populate accel, gyro, and temp data.
 func (i *IMU) ReadData() error {
+	var ax, ay, az int16
+	var rx, ry, rz int16
+	var temp int16
+
 	write := []byte{
 		MPU6050_RA_ACCEL_XOUT_H,
 	}
@@ -159,21 +163,50 @@ func (i *IMU) ReadData() error {
 	err := i.device.Tx(write, read)
 
 	if err != nil {
+		log.Println("Unable to write read command.")
 		return err
 	}
 
 	buf := bytes.NewBuffer(read)
-	err = binary.Read(buf, binary.BigEndian, &i.Acceleration)
+	err = binary.Read(buf, binary.BigEndian, &ax)
 	if err != nil {
+		log.Println("Unable to unpackage ax.")
 		return err
 	}
 
-	err = binary.Read(buf, binary.BigEndian, &i.Temperature)
+	err = binary.Read(buf, binary.BigEndian, &ay)
 	if err != nil {
+		log.Println("Unable to unpackage ay.")
 		return err
 	}
-	i.Temperature = (i.Temperature + 12412) / 340
+	err = binary.Read(buf, binary.BigEndian, &az)
+	if err != nil {
+		log.Println("Unable to unpackage az.")
+		return err
+	}
+	i.Acceleration = physics.NewVector(float64(ax), float64(ay), float64(az))
+	// log.Printf("Acceleration: <%d, %d, %d>", ax, ay, az)
 
-	err = binary.Read(buf, binary.BigEndian, &i.Rotation)
+	err = binary.Read(buf, binary.BigEndian, &temp)
+	if err != nil {
+		log.Println("Unable to unpackage Temperature.")
+		return err
+	}
+	i.Temperature = (float64(temp) + 12412) / 340
+	// log.Printf("Temperature: %d", i.Temperature)
+
+	err = binary.Read(buf, binary.BigEndian, &rx)
+	if err != nil {
+		log.Println("Unable to unpackage Rotation.")
+	}
+	err = binary.Read(buf, binary.BigEndian, &ry)
+	if err != nil {
+		log.Println("Unable to unpackage Rotation.")
+	}
+	err = binary.Read(buf, binary.BigEndian, &rz)
+	if err != nil {
+		log.Println("Unable to unpackage Rotation.")
+	}
+	i.Rotation = physics.NewVector(float64(rx), float64(ry), float64(rz))
 	return err
 }

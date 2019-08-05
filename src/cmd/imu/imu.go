@@ -24,7 +24,7 @@ func main() {
 
 	imu := car.NewIMU(b)
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		err := imu.ReadData()
 		if err != nil {
 			log.Fatal("Unable to read imu. Err: ", err)
@@ -34,9 +34,7 @@ func main() {
 		fmt.Printf("Rotation: %f\n", imu.Rotation)
 		fmt.Printf("Temp: %f\n", imu.Temperature)
 
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Second * 10)
 	}
-
-	car.ShutDown()
 
 }
