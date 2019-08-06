@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"log"
+	"math"
 	"time"
 
 	"leolaunches.com/assembly/physics"
@@ -35,7 +36,6 @@ func (s *sonar) GetDistance() float64 {
 	time.Sleep(time.Microsecond * 10)
 	s.signalPin.Low()
 
-
 	for s.echoPin.Read() == pi.Low {
 	}
 	initTime := time.Now()
@@ -43,7 +43,7 @@ func (s *sonar) GetDistance() float64 {
 	}
 	diff := time.Now().Sub(initTime)
 
-	return float64(diff.Nanoseconds() / 1000) / convertToCentimeters
+	return float64(diff.Nanoseconds()/1000) / convertToCentimeters
 }
 
 type led struct {
@@ -65,6 +65,7 @@ func (l *led) Toggle() {
 
 /*
 	Constants for the imu MPU-6050
+	https://howtomechatronics.com/tutorials/arduino/arduino-and-mpu6050-accelerometer-and-gyroscope-tutorial/
 */
 const (
 	MPU6050_RA_ACCEL_XOUT_H        = 0x3B
@@ -82,6 +83,14 @@ const (
 	MPU6050_ACCEL_FS_2             = 0x00
 	MPU6050_PWR1_SLEEP_BIT         = 6
 	MPU6050_PWR1_ENABLE_BIT        = 0
+
+	accelerometerRawConverter = 16384.0
+	gyroRawConverter          = 131.0
+	accErrX                   = -0.58
+	accErrY                   = 1.58
+	gyroErrX                  = 0.56
+	gyroErrY                  = -2.0
+	gyroErrZ                  = 0.79
 )
 
 // IMU Represents the MPU-6050 device
@@ -151,24 +160,46 @@ func NewIMU(bus i2c.BusCloser) *IMU {
 
 // ReadData triggers a read that will populate accel, gyro, and temp data.
 func (i *IMU) ReadData() error {
-	var ax, ay, az int16
-	var rx, ry, rz int16
-	var temp int16
 
 	write := []byte{
 		MPU6050_RA_ACCEL_XOUT_H,
 	}
 	read := make([]byte, 14)
 
+	startTime := time.Now()
 	err := i.device.Tx(write, read)
-
 	if err != nil {
 		log.Println("Unable to write read command.")
 		return err
 	}
+	timeElapsed := time.Now().Sub(startTime).Seconds()
 
 	buf := bytes.NewBuffer(read)
-	err = binary.Read(buf, binary.BigEndian, &ax)
+	err = i.readAcceleration(buf)
+	if err != nil {
+		log.Println("Unable read acceleration.")
+		return err
+	}
+
+	err = i.readTemperature(buf)
+	if err != nil {
+		log.Println("Unable read temperature.")
+		return err
+	}
+
+	err = i.readRotation(buf, timeElapsed)
+	if err != nil {
+		log.Println("Unable read rotation.")
+		return err
+	}
+
+	return nil
+}
+
+func (i *IMU) readAcceleration(buf *bytes.Buffer) error {
+	var ax, ay, az int16
+
+	err := binary.Read(buf, binary.BigEndian, &ax)
 	if err != nil {
 		log.Println("Unable to unpackage ax.")
 		return err
@@ -185,28 +216,59 @@ func (i *IMU) ReadData() error {
 		return err
 	}
 	i.Acceleration = physics.NewVector(float64(ax), float64(ay), float64(az))
-	// log.Printf("Acceleration: <%d, %d, %d>", ax, ay, az)
 
-	err = binary.Read(buf, binary.BigEndian, &temp)
+	return nil
+}
+
+func (i *IMU) readTemperature(buf *bytes.Buffer) error {
+	var temp int16
+	err := binary.Read(buf, binary.BigEndian, &temp)
 	if err != nil {
 		log.Println("Unable to unpackage Temperature.")
 		return err
 	}
 	i.Temperature = (float64(temp) + 12412) / 340
-	// log.Printf("Temperature: %d", i.Temperature)
+	return nil
+}
 
-	err = binary.Read(buf, binary.BigEndian, &rx)
+func (i *IMU) readRotation(buf *bytes.Buffer, dt float64) error {
+	var rx, ry, rz int16
+
+	rollAngleRaw := (math.Atan(i.Acceleration.Y/math.Sqrt(math.Pow(i.Acceleration.X, 2)+math.Pow(i.Acceleration.Z, 2))) * 180 / math.Pi) + accErrX
+	pitchAngleRaw := (math.Atan(-1.0*i.Acceleration.X/math.Sqrt(math.Pow(i.Acceleration.Y, 2)+math.Pow(i.Acceleration.Z, 2))) * 180 / math.Pi) + accErrY
+
+	err := binary.Read(buf, binary.BigEndian, &rx)
 	if err != nil {
 		log.Println("Unable to unpackage Rotation.")
+		return err
 	}
 	err = binary.Read(buf, binary.BigEndian, &ry)
 	if err != nil {
 		log.Println("Unable to unpackage Rotation.")
+		return err
 	}
 	err = binary.Read(buf, binary.BigEndian, &rz)
 	if err != nil {
 		log.Println("Unable to unpackage Rotation.")
+		return err
 	}
-	i.Rotation = physics.NewVector(float64(rx), float64(ry), float64(rz))
-	return err
+
+	rollAngle := (0.96 * float64(rx) * dt) + (0.04 * rollAngleRaw)
+	pitchAngle := (0.96 * float64(ry) * dt) + (0.04 * pitchAngleRaw)
+	yawAngle := float64(rz) * dt
+	i.Rotation = physics.NewVector(rollAngle, pitchAngle, yawAngle)
+
+	return nil
+}
+
+func (i *IMU) GetRoll() float64 {
+	return i.Rotation.X
+}
+
+func (i *IMU) GetPitch() float64 {
+	return i.Rotation.Y
+}
+
+func (i *IMU) GetYaw() float64 {
+	return i.Rotation.Z
 }

@@ -3,7 +3,7 @@ syntax = "proto3";
 package car;
 
 service Car {
-    rpc Move(MoveVector) returns (CurrentData) {}
+    rpc Move(MoveVector) returns (KinematicData) {}
     rpc GetSensorData(SensorParameters) returns(CurrentData) {}
 }
 
@@ -25,7 +25,7 @@ message SensorParameters {
   
 
 // The response message containing the greetings
-message CurrentData {
+message KinematicData {
   string errorMessage = 1;
   Vector location = 2;
   Vector rotation = 3;
