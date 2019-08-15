@@ -215,7 +215,7 @@ func (i *IMU) readAcceleration(buf *bytes.Buffer) error {
 		log.Println("Unable to unpackage az.")
 		return err
 	}
-	i.Acceleration = physics.NewVector(float64(ax), float64(ay), float64(az))
+	i.Acceleration = physics.NewVector(float64(ax) / accelerometerRawConverter , float64(ay)/ accelerometerRawConverter , float64(az)/ accelerometerRawConverter )
 
 	return nil
 }
@@ -234,8 +234,8 @@ func (i *IMU) readTemperature(buf *bytes.Buffer) error {
 func (i *IMU) readRotation(buf *bytes.Buffer, dt float64) error {
 	var rx, ry, rz int16
 
-	rollAngleRaw := (math.Atan(i.Acceleration.Y/math.Sqrt(math.Pow(i.Acceleration.X, 2)+math.Pow(i.Acceleration.Z, 2))) * 180 / math.Pi) + accErrX
-	pitchAngleRaw := (math.Atan(-1.0*i.Acceleration.X/math.Sqrt(math.Pow(i.Acceleration.Y, 2)+math.Pow(i.Acceleration.Z, 2))) * 180 / math.Pi) + accErrY
+	// rollAngleRaw := (math.Atan(i.Acceleration.Y/math.Sqrt(math.Pow(i.Acceleration.X, 2)+math.Pow(i.Acceleration.Z, 2))) * 180 / math.Pi) + accErrX
+	// pitchAngleRaw := (math.Atan(-1.0*i.Acceleration.X/math.Sqrt(math.Pow(i.Acceleration.Y, 2)+math.Pow(i.Acceleration.Z, 2))) * 180 / math.Pi) + accErrY
 
 	err := binary.Read(buf, binary.BigEndian, &rx)
 	if err != nil {
@@ -253,9 +253,18 @@ func (i *IMU) readRotation(buf *bytes.Buffer, dt float64) error {
 		return err
 	}
 
-	rollAngle := (0.96 * float64(rx) * dt) + (0.04 * rollAngleRaw)
-	pitchAngle := (0.96 * float64(ry) * dt) + (0.04 * pitchAngleRaw)
-	yawAngle := float64(rz) * dt
+
+	// rollAngle := (0.96 * float64(rx) * dt) + (0.04 * rollAngleRaw)
+	// pitchAngle := (0.96 * float64(ry) * dt) + (0.04 * pitchAngleRaw)
+	// yawAngle := float64(rz) * dt
+	log.Printf("rz: %d\n", rz)
+	// log.Printf("ry: %d\n", ry)
+	// log.Printf("rollAngleRaw: %f\n", rollAngleRaw)
+	// rollAngle := (0.96 * (i.GetRoll() + (float64(rx) * dt))) + (0.04 * rollAngleRaw)
+	// pitchAngle := (0.96 * (i.GetPitch() + (float64(ry) * dt))) + (0.04 * pitchAngleRaw)
+	rollAngle := -1.0 * math.Atan2(i.Acceleration.X, dist(i.Acceleration.Y, i.Acceleration.Z)) * 180 / math.Pi
+	pitchAngle := math.Atan2(i.Acceleration.Y, dist(i.Acceleration.X, i.Acceleration.Z)) * 180 / math.Pi
+	yawAngle := i.GetYaw() + (float64(rz) / 131.0 * dt)
 	i.Rotation = physics.NewVector(rollAngle, pitchAngle, yawAngle)
 
 	return nil
@@ -271,4 +280,8 @@ func (i *IMU) GetPitch() float64 {
 
 func (i *IMU) GetYaw() float64 {
 	return i.Rotation.Z
+}
+
+func dist(x, y float64) float64 {
+	return math.Sqrt((x * x) + (y * y))
 }
